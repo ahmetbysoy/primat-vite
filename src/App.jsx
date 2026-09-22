@@ -524,9 +524,11 @@ export default function App(){
           </div>
         )}
 
-        <div style={{marginTop:12, background:'#F5F3FF', border:'1px dashed var(--border)', borderRadius:14, padding:12, color:'#6D28D9', fontSize:12, lineHeight:1.6}}>
-          <b>💡 Pastel not:</b> Bu tema göz yormaz, gece gündüz kullanılabilir. Altta toolbar sabit — tek elle tüm sekmelere erişim. Üstteki tab'ler sadece masaüstünde.
-        </div>
+        {tab==='dashboard' && (
+          <div style={{marginTop:12, background:'#F5F3FF', border:'1px dashed var(--border)', borderRadius:14, padding:12, color:'#6D28D9', fontSize:12, lineHeight:1.6}}>
+            <b>💡 Pastel not:</b> Bu tema göz yormaz, gece gündüz kullanılabilir. Altta toolbar sabit — tek elle tüm sekmelere erişim. Üstteki tab'ler sadece masaüstünde.
+          </div>
+        )}
       </div>
 
       <BottomNav active={tab} onChange={setTab} counts={{signals: confluence.score>60?2:0, arb:0}} />
@@ -535,7 +537,7 @@ export default function App(){
         {toasts.map(t=>(
           <div key={t.id} className={`toast ${t.kind}`}>
             <div style={{flex:1}}><div style={{fontWeight:800, fontSize:12}}>{t.title} {t.count>1? `×${t.count}`:''}</div><div style={{color:'var(--muted)', marginTop:2}}>{t.msg}</div></div>
-            <button onClick={()=> setToasts(p=>p.filter(x=>x.id!==t.id))} style={{background:'white', border:'1px solid var(--border)', borderRadius:8, width:24, height:24, display:'grid', placeItems:'center', cursor:'pointer'}}>✕</button>
+            <button onClick={()=> setToasts(p=>p.filter(x=>x.id!==t.id))} aria-label="Bildirimi kapat" style={{background:'white', border:'1px solid var(--border)', display:'grid', placeItems:'center', cursor:'pointer', flexShrink:0}}>✕</button>
           </div>
         ))}
       </div>

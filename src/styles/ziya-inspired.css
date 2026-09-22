@@ -1,6 +1,11 @@
 /* src/styles/ziya-inspired.css — Ziya → Pastel */
 
 /* TopBadgeStrip */
+.top-badge-strip-wrap{position:relative}
+.top-badge-strip-wrap::after{
+  content:''; position:absolute; top:0; right:0; bottom:0; width:24px; z-index:2; pointer-events:none;
+  background: linear-gradient(to left, #FFFFFF, transparent);
+}
 .top-badge-strip{
   display:flex; gap:8px; overflow-x:auto; padding:8px 12px 6px 12px;
   scrollbar-width:none; -webkit-overflow-scrolling:touch;

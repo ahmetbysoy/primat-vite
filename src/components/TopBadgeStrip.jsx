@@ -25,7 +25,8 @@ export default function TopBadgeStrip({ price, liqRisk, rsi }) {
     if (price) {
       setBadgeData(prev => ({
         ...prev,
-        liq: { value: liqRisk ? `${liqRisk}%` : prev.liq.value, trend: liqRisk > 60 ? 'up' : 'down' },
+        // Liq = risk metriği: yüksek risk KÖTÜ olduğu için trend rengi ters — yüksek risk kırmızı (down/danger)
+        liq: { value: liqRisk ? `${liqRisk}%` : prev.liq.value, trend: liqRisk > 60 ? 'down' : 'up' },
         pain: { value: rsi ? `${rsi}` : prev.pain.value, trend: rsi > 55 ? 'up' : 'down' },
       }));
     }
@@ -55,6 +56,7 @@ export default function TopBadgeStrip({ price, liqRisk, rsi }) {
   }, []);
 
   return (
+    <div className="top-badge-strip-wrap">
     <div className="top-badge-strip">
       {BADGES.map(badge => {
         const data = badgeData[badge.id];
@@ -73,6 +75,7 @@ export default function TopBadgeStrip({ price, liqRisk, rsi }) {
           </div>
         );
       })}
+    </div>
     </div>
   );
 }
