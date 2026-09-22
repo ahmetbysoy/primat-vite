@@ -15,6 +15,7 @@ function useBinance(symbols){
   const [depth, setDepth] = useState({bids:[], asks:[]})
   const [status, setStatus] = useState('connecting')
   const wsRef = useRef(null)
+  const bufferRef = useRef([])
 
   useEffect(()=>{
     const symbol = symbols[0] || 'BTCUSDT'
@@ -22,7 +23,29 @@ function useBinance(symbols){
     const url = `wss://stream.binance.com:9443/stream?streams=${lower}@trade/${lower}@bookTicker/${lower}@depth20@100ms`
     let ws
     let reconnectTimer
+    let flushTimer
     let attempts = 0
+
+    const flush = ()=>{
+      if(bufferRef.current.length===0) return
+      const batch = bufferRef.current.splice(0)
+      const last = batch[batch.length-1]
+      setPrice(last.price)
+      setTrades(prev=> {
+        const n=[...prev, ...batch]
+        if(n.length>2000) n.splice(0, n.length-2000)
+        return n
+      })
+    }
+    flushTimer = setInterval(flush, 180)
+    const onVis = ()=> {
+      if(document.hidden){
+        clearInterval(flushTimer)
+      } else {
+        flushTimer = setInterval(flush, 180)
+      }
+    }
+    document.addEventListener('visibilitychange', onVis)
 
     const connect = ()=>{
       setStatus('connecting')
@@ -41,21 +64,19 @@ function useBinance(symbols){
           const data = msg.data || msg
           if(data.e === 'trade'){
             const t = { price: parseFloat(data.p), qty: parseFloat(data.q), quote: parseFloat(data.p)*parseFloat(data.q), isBuyer: !data.m, time: data.T, sym: data.s }
-            setPrice(t.price)
-            setTrades(prev=> { const n=[...prev, t]; if(n.length>2000) n.shift(); return n })
+            // P2: batch instead of immediate setState
+            bufferRef.current.push(t)
           } else if(data.b && data.a){ // bookTicker
             setTicker({ bid: parseFloat(data.b), bidQty: parseFloat(data.B), ask: parseFloat(data.a), askQty: parseFloat(data.A) })
             setPrice(p=> p || (parseFloat(data.b)+parseFloat(data.a))/2 )
           } else if(data.bids && data.asks){
             setDepth({ bids: data.bids.map(b=>[parseFloat(b[0]), parseFloat(b[1])]), asks: data.asks.map(a=>[parseFloat(a[0]), parseFloat(a[1])]) })
-          } else if(data.e === 'depthUpdate'){
-            // shallow update - ignore for now, keep last snapshot
           }
         }catch{}
       }
     }
     connect()
-    return ()=>{ clearTimeout(reconnectTimer); if(ws) ws.close() }
+    return ()=>{ clearTimeout(reconnectTimer); clearInterval(flushTimer); document.removeEventListener('visibilitychange', onVis); if(ws) ws.close() }
   }, [symbols.join(',')])
 
   return { price, ticker, trades, depth, status }
@@ -89,23 +110,30 @@ export default function App(){
 
   const { price, ticker, trades, depth, status } = useBinance([symbol])
 
-  // 24h ticker + timeframe klines
+  // 24h ticker + timeframe klines — P2: pause when hidden
   const [chg, setChg] = useState({p:0, h:0,l:0,q:0})
   useEffect(()=>{
     let t
+    let paused=false
     async function fetch24(){
+      if(document.hidden) return
       try{
         const r=await fetch(`https://api.binance.com/api/v3/ticker/24hr?symbol=${symbol}`)
         const j=await r.json()
         setChg({p:parseFloat(j.priceChangePercent), h:parseFloat(j.highPrice), l:parseFloat(j.lowPrice), q:parseFloat(j.quoteVolume)})
-        // klines for confluence — timeframe'e göre
         const k=await fetch(`https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=${timeframe}&limit=60`).then(r=>r.json())
         setKline(k)
       }catch{}
     }
     fetch24()
-    t=setInterval(fetch24, 20000)
-    return ()=>clearInterval(t)
+    const startInterval=()=>{ if(t) clearInterval(t); t=setInterval(fetch24, 20000) }
+    const onVis=()=>{
+      if(document.hidden){ paused=true; clearInterval(t) }
+      else { if(paused){ paused=false; fetch24(); startInterval() } }
+    }
+    document.addEventListener('visibilitychange', onVis)
+    startInterval()
+    return ()=>{ clearInterval(t); document.removeEventListener('visibilitychange', onVis) }
   },[symbol, timeframe])
 
   // CVD + whale detection derived from trades
@@ -273,7 +301,7 @@ export default function App(){
         <div style={{display:'flex',gap:8,alignItems:'center', flexWrap:'wrap'}}>
           <span className="pill"><i className={`dot ${status==='connected'?'on': status==='connecting'?'':'off'}`} />{status==='connected'?'Binance ●':'Bağlanıyor…'}</span>
           <span className="counter">⚡ {flow.imb>0?'+':''}{flow.imb.toFixed(1)}% FLOW</span>
-          <button className="btn btn-ghost" onClick={()=>setSound(v=>!v)}>{sound?'🔊':'🔈'}</button>
+          <button className="btn btn-ghost" onClick={()=>setSound(v=>!v)} aria-label={sound?'Sesi kapat':'Sesi aç'} title={sound?'Sesi kapat':'Sesi aç'}>{sound?'🔊':'🔈'}</button>
         </div>
       </header>
 
@@ -297,13 +325,26 @@ export default function App(){
         oi: (chg.q/1e9).toFixed(2),
       }} />
 
+      {status==='disconnected' && (
+        <div role="status" aria-live="polite" style={{background:'#FFF1F2', borderBottom:'1px solid #FFD0D8', color:'#9F1239', padding:'8px 12px', display:'flex', alignItems:'center', justifyContent:'center', gap:8, fontSize:12, fontWeight:700}}>
+          <span style={{width:8,height:8,borderRadius:'50%',background:'#E11D48', display:'inline-block', animation:'pulse 1.2s infinite'}} />
+          Bağlantı kesildi — yeniden bağlanıyor… • Veriler gecikebilir
+        </div>
+      )}
       <div className="container">
-        {/* Top tabs desktop + TimeframeSelector */}
-        <div style={{display:'flex', gap:8, alignItems:'center', marginBottom:12, flexWrap:'wrap'}}>
+        {/* Symbol + Timeframe — her zaman görünür (P0 fix) */}
+        <div style={{display:'flex', gap:8, alignItems:'center', marginBottom:10, flexWrap:'wrap'}}>
+          <label style={{display:'flex', alignItems:'center', gap:6, fontSize:12, fontWeight:700, color:'var(--muted)'}}>
+            Coin
+            <select value={symbol} onChange={e=>setSymbol(e.target.value)} style={{minWidth:130}} aria-label="Sembol seç">
+              {SYMBOLS.map(s=> <option key={s} value={s}>{s}</option>)}
+            </select>
+          </label>
           <TimeframeSelector value={timeframe} onChange={setTimeframe} />
           <div style={{flex:1}} />
+          <span className="mono muted" style={{fontSize:11}}>{timeframe} • {symbol}</span>
         </div>
-        {/* Top tabs desktop */}
+        {/* Top tabs desktop — mobilde gizli */}
         <div className="top-tabs" style={{marginBottom:12}}>
           {[
             ['dashboard','◈ Panel'],
@@ -314,10 +355,6 @@ export default function App(){
           ].map(([id,label])=>(
             <button key={id} onClick={()=>setTab(id)} className={tab===id?'active':''}>{label}</button>
           ))}
-          <div style={{flex:1}} />
-          <select value={symbol} onChange={e=>setSymbol(e.target.value)} style={{minWidth:120}}>
-            {SYMBOLS.map(s=> <option key={s} value={s}>{s}</option>)}
-          </select>
         </div>
 
         {tab==='dashboard' && (
@@ -336,10 +373,10 @@ export default function App(){
                   </div>
                   <div className="chart-wrap" style={{marginTop:12, display:'grid', placeItems:'center', color:'var(--muted)'}}>
                     {/* Light canvas placeholder - price sparkline using div bars */}
-                    <div style={{display:'flex', alignItems:'flex-end', gap:2, height:140, width:'92%'}}>
-                      {trades.slice(-60).map((t,i)=>{
-                        const slice=trades.slice(-60); const prices=slice.map(p=>p.price); const min=Math.min(...prices), max=Math.max(...prices); const h= ((t.price-min)/(max-min||1))*100
-                        return <div key={i} style={{flex:1, height: `${Math.max(6,h)}%`, background: t.isBuyer? 'linear-gradient(180deg,#FF6BCB,#8B5CF6)':'#FFD0D8', borderRadius:6, opacity:0.9}} />
+                    <div style={{display:'flex', alignItems:'flex-end', gap:2, height:140, width:'92%', overflow:'hidden'}}>
+                      {trades.slice(-32).map((t,i)=>{
+                        const slice=trades.slice(-32); const prices=slice.map(p=>p.price); const min=Math.min(...prices), max=Math.max(...prices); const h= ((t.price-min)/(max-min||1))*100
+                        return <div key={i} style={{flex:1, minWidth:3, height: `${Math.max(6,h)}%`, background: t.isBuyer? 'linear-gradient(180deg,#FF6BCB,#8B5CF6)':'#FFD0D8', borderRadius:6, opacity:0.9}} />
                       })}
                     </div>
                     <span style={{position:'absolute', left:10, top:8, fontSize:11, background:'white', border:'1px solid var(--border)', padding:'4px 8px', borderRadius:999}}>LIVE TRADES • {symbol}</span>
@@ -454,9 +491,9 @@ export default function App(){
             <div className="card-head"><h3>◎ Akıllı Plan</h3><small>ATR 1.5x SL • 1:2 / 1:3</small></div>
             <div className="card-body">
               <div className="row" style={{gap:8}}>
-                <label> Bakiye <input type="number" value={balance} onChange={e=>setBalance(parseFloat(e.target.value)||0)} style={{width:110}} /></label>
-                <label> Risk % <input type="number" value={risk} onChange={e=>setRisk(parseFloat(e.target.value)||0)} style={{width:80}} /></label>
-                <button className="btn btn-primary" onClick={genPlan}>⚡ Oluştur</button>
+                <label> Bakiye <input type="number" value={balance} onChange={e=>setBalance(parseFloat(e.target.value)||0)} style={{width:110}} aria-label="Bakiye" inputMode="decimal" /></label>
+                <label> Risk % <input type="number" value={risk} onChange={e=>setRisk(parseFloat(e.target.value)||0)} style={{width:80}} aria-label="Risk yüzdesi" inputMode="decimal" /></label>
+                <button className="btn btn-primary" onClick={genPlan} aria-label="Plan oluştur">⚡ Oluştur</button>
               </div>
               {plan ? (
                 <div style={{marginTop:12}}>

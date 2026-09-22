@@ -50,7 +50,13 @@
   display:flex; align-items:center; animation: strip-scroll 30s linear infinite; will-change:transform;
 }
 .infoStripTrack:hover{animation-play-state:paused}
+.infoStripTrack.paused{animation-play-state:paused}
 @keyframes strip-scroll{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+@media (prefers-reduced-motion: reduce){
+  .infoStripTrack{animation:none !important; transform:none !important}
+  .tf-active{animation:none !important}
+  .badge-glow{box-shadow:none !important}
+}
 .iCell{display:flex; align-items:center; gap:4px; padding:0 10px; flex-shrink:0}
 .iIcon{font-size:11px; opacity:0.9}
 .iLbl{font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:0.4px; font-weight:700; white-space:nowrap}

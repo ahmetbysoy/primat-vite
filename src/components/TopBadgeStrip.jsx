@@ -32,16 +32,26 @@ export default function TopBadgeStrip({ price, liqRisk, rsi }) {
   }, [price, liqRisk, rsi]);
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      setBadgeData(prev => ({
-        ...prev,
-        heat: {
-          value: `${Math.floor(60 + Math.random() * 30)}`,
-          trend: Math.random() > 0.5 ? 'up' : 'down'
-        }
-      }));
-    }, 3000);
-    return () => clearInterval(interval);
+    let interval
+    const start=()=>{
+      interval = setInterval(() => {
+        if(document.hidden) return
+        setBadgeData(prev => ({
+          ...prev,
+          heat: {
+            value: `${Math.floor(60 + Math.random() * 30)}`,
+            trend: Math.random() > 0.5 ? 'up' : 'down'
+          }
+        }));
+      }, 3000);
+    }
+    start()
+    const onVis=()=>{
+      if(document.hidden){ clearInterval(interval) }
+      else { clearInterval(interval); start() }
+    }
+    document.addEventListener('visibilitychange', onVis)
+    return () => { clearInterval(interval); document.removeEventListener('visibilitychange', onVis) }
   }, []);
 
   return (
