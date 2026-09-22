@@ -1,0 +1,62 @@
+/* src/styles/ziya-inspired.css — Ziya → Pastel */
+
+/* TopBadgeStrip */
+.top-badge-strip{
+  display:flex; gap:8px; overflow-x:auto; padding:8px 12px 6px 12px;
+  scrollbar-width:none; -webkit-overflow-scrolling:touch;
+  background: linear-gradient(180deg, #FFF7FB, #FFFFFF);
+  border-bottom: 1px solid var(--border);
+}
+.top-badge-strip::-webkit-scrollbar{display:none}
+.tBadge{
+  display:inline-flex; align-items:center; gap:5px;
+  background: white; border:1px solid var(--border);
+  border-radius:999px; padding:5px 10px; font-size:11px; color:var(--text);
+  white-space:nowrap; flex-shrink:0;
+  box-shadow: 0 2px 8px rgba(139,92,246,0.06);
+  transition: all 0.2s;
+}
+.tBadge.pastel:hover{transform: translateY(-1px); box-shadow: 0 4px 14px rgba(139,92,246,0.12)}
+.badge-glow{ box-shadow: 0 0 10px -2px currentColor, 0 0 20px -5px currentColor; }
+
+/* TimeframeSelector — Ziya gradient active */
+.tfRow{display:flex; gap:6px; align-items:center; overflow-x:auto; scrollbar-width:none; padding:2px 0}
+.tfRow::-webkit-scrollbar{display:none}
+.tfBtn{
+  padding:6px 12px; border-radius:999px; font-size:12px; font-weight:700;
+  color: var(--muted); background: white; border:1px solid var(--border);
+  cursor:pointer; transition: all 0.15s; white-space:nowrap; flex-shrink:0;
+}
+.tfBtn.active{
+  background: linear-gradient(135deg, #FF6BCB, #8B5CF6); color:white;
+  border-color:transparent; box-shadow: 0 4px 14px rgba(139,92,246,0.25);
+}
+.tfBtn:active{transform:scale(0.94)}
+.tf-active{animation: tf-pulse 2s ease-in-out infinite}
+@keyframes tf-pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.03)}}
+
+/* InfoStrip — auto-clone seamless marquee */
+.infoStrip{
+  height:36px; min-height:36px; background: #FFFFFF;
+  border-top:1px solid var(--border); border-bottom:1px solid var(--border);
+  display:flex; align-items:center; overflow:hidden; position:relative;
+}
+.infoStrip::before,.infoStrip::after{
+  content:''; position:absolute; top:0; bottom:0; width:28px; z-index:2; pointer-events:none;
+}
+.infoStrip::before{left:0; background: linear-gradient(to right, white, transparent)}
+.infoStrip::after{right:0; background: linear-gradient(to left, white, transparent)}
+.infoStripTrack{
+  display:flex; align-items:center; animation: strip-scroll 30s linear infinite; will-change:transform;
+}
+.infoStripTrack:hover{animation-play-state:paused}
+@keyframes strip-scroll{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+.iCell{display:flex; align-items:center; gap:4px; padding:0 10px; flex-shrink:0}
+.iIcon{font-size:11px; opacity:0.9}
+.iLbl{font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:0.4px; font-weight:700; white-space:nowrap}
+.iVal{font-size:11px; font-weight:800; color:var(--text); white-space:nowrap; font-variant-numeric:tabular-nums}
+.iSep{width:1px; height:16px; background: var(--border); flex-shrink:0}
+.iCell.secondary{display:flex}
+@media(max-width:640px){ .iCell.secondary{display:none} }
+.scrollbar-hide::-webkit-scrollbar{display:none}
+.scrollbar-hide{ -ms-overflow-style:none; scrollbar-width:none; }

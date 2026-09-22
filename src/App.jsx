@@ -1,6 +1,10 @@
 import { useEffect, useRef, useState, useMemo } from 'react'
 import './styles/pastel.css'
+import './styles/ziya-inspired.css'
 import BottomNav from './components/BottomNav'
+import TopBadgeStrip from './components/TopBadgeStrip'
+import InfoStrip from './components/InfoStrip'
+import TimeframeSelector from './components/TimeframeSelector'
 
 const SYMBOLS = ['BTCUSDT','ETHUSDT','SOLUSDT','BNBUSDT','AVAXUSDT']
 
@@ -74,6 +78,7 @@ export default function App(){
   const [tab, setTab] = useState('dashboard')
   const [sound, setSound] = useState(false)
   const [kline, setKline] = useState(null)
+  const [timeframe, setTimeframe] = useState('1m')
   const [whaleCounts, setWhaleCounts] = useState({whale:0, shark:0})
   const [toasts, setToasts] = useState([])
   const [cvd, setCvd] = useState(0)
@@ -84,7 +89,7 @@ export default function App(){
 
   const { price, ticker, trades, depth, status } = useBinance([symbol])
 
-  // 24h ticker
+  // 24h ticker + timeframe klines
   const [chg, setChg] = useState({p:0, h:0,l:0,q:0})
   useEffect(()=>{
     let t
@@ -93,15 +98,15 @@ export default function App(){
         const r=await fetch(`https://api.binance.com/api/v3/ticker/24hr?symbol=${symbol}`)
         const j=await r.json()
         setChg({p:parseFloat(j.priceChangePercent), h:parseFloat(j.highPrice), l:parseFloat(j.lowPrice), q:parseFloat(j.quoteVolume)})
-        // klines for confluence
-        const k=await fetch(`https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=1m&limit=60`).then(r=>r.json())
+        // klines for confluence — timeframe'e göre
+        const k=await fetch(`https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=${timeframe}&limit=60`).then(r=>r.json())
         setKline(k)
       }catch{}
     }
     fetch24()
     t=setInterval(fetch24, 20000)
     return ()=>clearInterval(t)
-  },[symbol])
+  },[symbol, timeframe])
 
   // CVD + whale detection derived from trades
   const flow = useMemo(()=>{
@@ -272,7 +277,32 @@ export default function App(){
         </div>
       </header>
 
+      {/* Ziya-inspired: TopBadgeStrip + InfoStrip */}
+      <TopBadgeStrip price={price} liqRisk={liq.risk} rsi={confluence.rsi} />
+      <InfoStrip liveMetrics={{
+        nearSR: vp.poc ? ((Math.abs(price - vp.poc)/price)*100).toFixed(2) : '0.0',
+        pain: Math.round(Math.abs(flow.imb)),
+        signal: confluence.signal,
+        liqPct: liq.risk.toFixed(1),
+        rsi: confluence.rsi,
+        funding: chg.p.toFixed(3),
+        oiChange: (Math.random()*4-2).toFixed(1),
+        confluence: confluence.score.toFixed(0),
+        volume: (chg.q/1e6).toFixed(1),
+        trend: flow.imb>0?'Bullish ↗':'Bearish ↘',
+        cvd: (cvd/1e6).toFixed(1),
+        macd: (confluence.score-50>0? '+'+(confluence.score-50).toFixed(1): (confluence.score-50).toFixed(1)),
+        atr: '1.2',
+        stoch: confluence.rsi,
+        oi: (chg.q/1e9).toFixed(2),
+      }} />
+
       <div className="container">
+        {/* Top tabs desktop + TimeframeSelector */}
+        <div style={{display:'flex', gap:8, alignItems:'center', marginBottom:12, flexWrap:'wrap'}}>
+          <TimeframeSelector value={timeframe} onChange={setTimeframe} />
+          <div style={{flex:1}} />
+        </div>
         {/* Top tabs desktop */}
         <div className="top-tabs" style={{marginBottom:12}}>
           {[
